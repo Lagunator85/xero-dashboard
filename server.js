@@ -10,7 +10,7 @@ app.use(express.static('public'));
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
-const SCOPES = 'openid profile email accounting.reports.read';
+const SCOPES = 'openid profile email accounting.reports.read.profit-and-loss accounting.reports.read.balance-sheet accounting.reports.read.bank-summary offline_access';
 const tokenStore = {};
 
 // Ruta de inicio - redirige a Xero
