@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Financiero — Xero</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: white; border-radius: 16px; padding: 2.5rem; max-width: 420px; width: 90%; box-shadow: 0 2px 20px rgba(0,0,0,0.08); text-align: center; }
+    .logo { width: 56px; height: 56px; background: #13B5EA; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; font-size: 22px; font-weight: 700; color: white; }
+    h1 { font-size: 20px; font-weight: 600; color: #1a1a1a; margin-bottom: 0.5rem; }
+    p { font-size: 14px; color: #666; margin-bottom: 2rem; line-height: 1.6; }
+    .btn { display: inline-block; background: #13B5EA; color: white; padding: 12px 32px; border-radius: 10px; text-decoration: none; font-size: 15px; font-weight: 500; transition: background 0.2s; }
+    .btn:hover { background: #0e9fd4; }
+    .secure { font-size: 12px; color: #999; margin-top: 1.25rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">X</div>
+    <h1>Dashboard Financiero</h1>
+    <p>Conecta tu cuenta de Xero para ver tus reportes de P&L, Balance General y Flujo de Caja.</p>
+    <a href="/auth" class="btn">Conectar con Xero</a>
+    <p class="secure">🔒 Conexión segura via OAuth 2.0</p>
+  </div>
+</body>
+</html>
