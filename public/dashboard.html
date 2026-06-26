@@ -8,16 +8,20 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a1a; display: flex; flex-direction: column; min-height: 100vh; }
-    header { background: white; border-bottom: 1px solid #eee; padding: 0 2rem; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; flex-shrink: 0; }
+    header { background: white; border-bottom: 1px solid #eee; padding: 0 1.5rem; min-height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 20; flex-shrink: 0; flex-wrap: wrap; }
     .header-left { display: flex; align-items: center; gap: 10px; }
     .logo { width: 32px; height: 32px; background: #13B5EA; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: white; }
     .header-title { font-size: 15px; font-weight: 600; }
-    .header-right { display: flex; align-items: center; gap: 10px; }
-    select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; background: white; }
-    .btn-refresh { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: #444; }
-    .btn-refresh:hover { background: #f5f5f5; }
-    main { max-width: 1100px; width: 100%; margin: 0 auto; padding: 1.5rem; flex: 1; }
-    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+    .header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    select, input[type=date] { padding: 6px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; background: white; font-family: inherit; }
+    .btn-refresh { background: #13B5EA; border: none; border-radius: 8px; padding: 7px 16px; font-size: 13px; cursor: pointer; color: white; font-weight: 500; }
+    .btn-refresh:hover { background: #0e9fd4; }
+    .date-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .custom-dates { display: none; gap: 6px; align-items: center; }
+    .custom-dates.show { display: flex; }
+    .cache-badge { font-size: 11px; color: #16a34a; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 3px 9px; }
+    main { max-width: 1200px; width: 100%; margin: 0 auto; padding: 1.5rem; flex: 1; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
     .metric { background: white; border-radius: 12px; padding: 1rem 1.25rem; border: 1px solid #eee; }
     .metric-label { font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
     .metric-value { font-size: 20px; font-weight: 600; }
@@ -27,18 +31,19 @@
     .tabs { display: flex; gap: 4px; background: white; border-radius: 10px; padding: 4px; margin-bottom: 1rem; border: 1px solid #eee; width: fit-content; flex-wrap: wrap; }
     .tab { padding: 7px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; background: transparent; color: #666; font-family: inherit; }
     .tab.active { background: #f0f0f0; color: #1a1a1a; font-weight: 500; }
-    .report-card { background: white; border-radius: 12px; border: 1px solid #eee; overflow: hidden; margin-bottom: 1.5rem; }
+    .report-card { background: white; border-radius: 12px; border: 1px solid #eee; overflow-x: auto; margin-bottom: 1.5rem; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    thead th { padding: 10px 16px; text-align: left; color: #888; font-weight: 500; border-bottom: 1px solid #eee; background: #fafafa; }
+    thead th { padding: 10px 16px; text-align: left; color: #888; font-weight: 500; border-bottom: 1px solid #eee; background: #fafafa; white-space: nowrap; }
+    thead th.amount { text-align: right; }
     tbody td { padding: 9px 16px; border-bottom: 1px solid #f0f0f0; }
     tbody tr:last-child td { border-bottom: none; }
-    .amount { text-align: right; font-variant-numeric: tabular-nums; }
+    .amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .total-row td { font-weight: 600; background: #eff6ff; color: #1d4ed8; }
+    .row-detail td:first-child { padding-left: 28px; color: #555; }
     .section-header { cursor: pointer; user-select: none; }
     .section-header td { font-weight: 600; background: #f0f9ff; color: #0369a1; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; padding: 10px 16px; }
-    .section-header td:last-child::after { content: ' ▲'; font-size: 10px; }
-    .section-header.collapsed td:last-child::after { content: ' ▼'; }
-    .section-rows.collapsed { display: none; }
+    .section-header td .chev { font-size: 10px; display: inline-block; width: 14px; }
+    .section-detail.collapsed { display: none; }
     #tenant-picker { background: white; border-radius: 12px; border: 1px solid #eee; padding: 1.5rem; margin-bottom: 1.5rem; }
     #tenant-picker h3 { font-size: 14px; font-weight: 600; margin-bottom: 0.75rem; }
     #tenant-picker select { width: 100%; margin-bottom: 0.75rem; padding: 8px 12px; }
@@ -46,18 +51,19 @@
     .btn-primary:hover { background: #0e9fd4; }
     .loading { text-align: center; padding: 3rem; color: #888; font-size: 14px; }
     .empty { text-align: center; padding: 2rem; color: #aaa; font-size: 13px; }
+    .report-toolbar { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0; align-items: center; flex-wrap: wrap; }
+    .report-toolbar .btn-mini { background: white; border: 1px solid #ddd; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; color: #555; font-family: inherit; }
+    .report-toolbar .btn-mini:hover { background: #f5f5f5; }
 
-    /* Gráficos */
     .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; padding: 16px; }
     .chart-card { background: white; border-radius: 10px; border: 1px solid #eee; padding: 16px; }
     .chart-title { font-size: 13px; font-weight: 600; color: #444; margin-bottom: 12px; }
     .chart-wrap { position: relative; height: 200px; }
 
-    /* Proyección */
     .projection-wrap { padding: 16px; }
     .projection-controls { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
     .projection-controls label { font-size: 13px; color: #666; }
-    .projection-controls input { padding: 6px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; width: 120px; }
+    .projection-controls input { padding: 6px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; width: 130px; }
     .btn-project { background: #13B5EA; color: white; border: none; border-radius: 8px; padding: 7px 16px; font-size: 13px; cursor: pointer; font-family: inherit; }
     .projection-result { background: #f0f9ff; border-radius: 10px; padding: 16px; margin-top: 12px; font-size: 13px; }
     .proj-months { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 12px; }
@@ -66,7 +72,6 @@
     .proj-month-balance { font-size: 14px; font-weight: 600; }
     .proj-month-note { font-size: 10px; color: #dc2626; margin-top: 2px; }
 
-    /* Razones financieras */
     .ratios-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 16px; }
     .ratio-card { background: #fafafa; border-radius: 10px; padding: 14px; border: 1px solid #eee; }
     .ratio-name { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
@@ -76,7 +81,6 @@
     .ratio-warn { border-left: 3px solid #f59e0b; }
     .ratio-bad { border-left: 3px solid #dc2626; }
 
-    /* Chat */
     .chat-section { background: white; border-radius: 12px; border: 1px solid #eee; overflow: hidden; margin-bottom: 2rem; }
     .chat-header { padding: 14px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px; }
     .chat-header-icon { width: 28px; height: 28px; background: #f0f9ff; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
@@ -96,7 +100,6 @@
     .msg-bubble table td { padding: 5px 8px; border-bottom: 1px solid rgba(0,0,0,0.06); }
     .msg-bubble h3 { font-size: 13px; margin: 10px 0 4px; }
     .msg-bubble ul { padding-left: 16px; }
-    .msg-bubble li { margin-bottom: 3px; }
     .typing { display: flex; gap: 4px; align-items: center; padding: 10px 14px; }
     .typing span { width: 6px; height: 6px; background: #aaa; border-radius: 50%; animation: bounce 1.2s infinite; }
     .typing span:nth-child(2) { animation-delay: 0.2s; }
@@ -120,12 +123,37 @@
       <span class="header-title">Dashboard Financiero</span>
     </div>
     <div class="header-right">
-      <select id="period-select" onchange="refreshReports()">
-        <option value="MONTH">Este mes</option>
-        <option value="QUARTER" selected>Este trimestre</option>
-        <option value="YEAR">Este año</option>
-      </select>
-      <button class="btn-refresh" onclick="refreshReports()">↻ Actualizar</button>
+      <div class="date-controls">
+        <select id="range-select" onchange="onRangeChange()">
+          <optgroup label="Períodos actuales">
+            <option value="thismonth">Este mes</option>
+            <option value="thisquarter">Este trimestre</option>
+            <option value="thisyear" selected>Este año</option>
+          </optgroup>
+          <optgroup label="Períodos anteriores">
+            <option value="lastmonth">Mes anterior</option>
+            <option value="lastquarter">Trimestre anterior</option>
+            <option value="lastyear">Año anterior</option>
+          </optgroup>
+          <optgroup label="A la fecha">
+            <option value="mtd">Mes a la fecha</option>
+            <option value="qtd">Trimestre a la fecha</option>
+            <option value="ytd">Año a la fecha</option>
+          </optgroup>
+          <option value="custom">Rango personalizado…</option>
+        </select>
+        <div class="custom-dates" id="custom-dates">
+          <input type="date" id="date-from" />
+          <span style="color:#888;font-size:12px;">a</span>
+          <input type="date" id="date-to" />
+        </div>
+        <select id="view-select" onchange="refreshReports()" title="Cómo ver las columnas">
+          <option value="total">Total del período</option>
+          <option value="month">Por mes</option>
+          <option value="quarter">Por trimestre</option>
+        </select>
+      </div>
+      <button class="btn-refresh" onclick="refreshReports(true)">↻ Actualizar</button>
     </div>
   </header>
 
@@ -151,7 +179,6 @@
       <div id="report-content"><div class="loading">Cargando...</div></div>
     </div>
 
-    <!-- Chat IA -->
     <div class="chat-section" id="chat-section" style="display:none;">
       <div class="chat-header">
         <div class="chat-header-icon">🤖</div>
@@ -169,9 +196,7 @@
         <div class="suggestion" onclick="sendSuggestion(this)">¿Quién es el cliente que más me compra?</div>
         <div class="suggestion" onclick="sendSuggestion(this)">¿Quiénes me deben más dinero?</div>
         <div class="suggestion" onclick="sendSuggestion(this)">¿A quién le debo más?</div>
-        <div class="suggestion" onclick="sendSuggestion(this)">¿Cuál es mi margen de utilidad?</div>
         <div class="suggestion" onclick="sendSuggestion(this)">Análisis de auditor de mis finanzas</div>
-        <div class="suggestion" onclick="sendSuggestion(this)">¿Algún gasto con comportamiento extraño?</div>
       </div>
       <div class="chat-input-row">
         <textarea class="chat-input" id="chat-input" placeholder="Escribe tu pregunta financiera..." onkeydown="handleKey(event)"></textarea>
@@ -185,7 +210,6 @@
     let currentTab = 'pl';
     let reportCache = {};
     let chatHistory = [];
-    let chartsInitialized = false;
     let chartInstances = {};
 
     async function init() {
@@ -202,8 +226,7 @@
           const select = document.getElementById('tenant-select');
           tenants.forEach(t => {
             const opt = document.createElement('option');
-            opt.value = t.tenantId;
-            opt.textContent = t.tenantName;
+            opt.value = t.tenantId; opt.textContent = t.tenantName;
             select.appendChild(opt);
           });
           document.getElementById('tenant-picker').style.display = 'block';
@@ -222,21 +245,63 @@
       refreshReports();
     }
 
-    function getDateRange() {
-      const period = document.getElementById('period-select').value;
-      const now = new Date();
-      const toDate = now.toISOString().split('T')[0];
-      let fromDate;
-      if (period === 'MONTH') fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-      else if (period === 'QUARTER') { const q = Math.floor(now.getMonth() / 3); fromDate = new Date(now.getFullYear(), q * 3, 1).toISOString().split('T')[0]; }
-      else fromDate = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
-      return { fromDate, toDate };
+    function onRangeChange() {
+      const v = document.getElementById('range-select').value;
+      document.getElementById('custom-dates').classList.toggle('show', v === 'custom');
+      if (v !== 'custom') refreshReports();
     }
 
-    async function refreshReports() {
+    // Calcula fromDate y toDate según la selección
+    function getDateRange() {
+      const sel = document.getElementById('range-select').value;
+      const now = new Date();
+      const y = now.getFullYear(), mo = now.getMonth();
+      const iso = d => d.toISOString().split('T')[0];
+      const firstOfMonth = (yy, mm) => new Date(yy, mm, 1);
+      const lastOfMonth = (yy, mm) => new Date(yy, mm + 1, 0);
+      const q = Math.floor(mo / 3);
+      switch(sel) {
+        case 'thismonth': return { fromDate: iso(firstOfMonth(y, mo)), toDate: iso(lastOfMonth(y, mo)) };
+        case 'thisquarter': return { fromDate: iso(firstOfMonth(y, q*3)), toDate: iso(lastOfMonth(y, q*3+2)) };
+        case 'thisyear': return { fromDate: `${y}-01-01`, toDate: `${y}-12-31` };
+        case 'lastmonth': { const d = firstOfMonth(y, mo-1); return { fromDate: iso(d), toDate: iso(lastOfMonth(d.getFullYear(), d.getMonth())) }; }
+        case 'lastquarter': { const lq = q-1; const yy = lq < 0 ? y-1 : y; const qq = (lq+4)%4; return { fromDate: iso(firstOfMonth(yy, qq*3)), toDate: iso(lastOfMonth(yy, qq*3+2)) }; }
+        case 'lastyear': return { fromDate: `${y-1}-01-01`, toDate: `${y-1}-12-31` };
+        case 'mtd': return { fromDate: iso(firstOfMonth(y, mo)), toDate: iso(now) };
+        case 'qtd': return { fromDate: iso(firstOfMonth(y, q*3)), toDate: iso(now) };
+        case 'ytd': return { fromDate: `${y}-01-01`, toDate: iso(now) };
+        case 'custom': {
+          const f = document.getElementById('date-from').value || `${y}-01-01`;
+          const t = document.getElementById('date-to').value || iso(now);
+          return { fromDate: f, toDate: t };
+        }
+        default: return { fromDate: `${y}-01-01`, toDate: iso(now) };
+      }
+    }
+
+    // Cuántas columnas (periods) y timeframe según "vista"
+    function getViewParams() {
+      const view = document.getElementById('view-select').value;
+      if (view === 'total') return null;
+      const { fromDate, toDate } = getDateRange();
+      const f = new Date(fromDate), t = new Date(toDate);
+      if (view === 'month') {
+        const months = (t.getFullYear()-f.getFullYear())*12 + (t.getMonth()-f.getMonth());
+        return { timeframe: 'MONTH', periods: Math.max(1, Math.min(11, months)) };
+      }
+      if (view === 'quarter') {
+        const quarters = Math.floor(((t.getFullYear()-f.getFullYear())*12 + (t.getMonth()-f.getMonth())) / 3);
+        return { timeframe: 'QUARTER', periods: Math.max(1, Math.min(11, quarters)) };
+      }
+      return null;
+    }
+
+    async function refreshReports(forceClear) {
       if (!currentTenantId) return;
+      if (forceClear) {
+        try { await fetch('/api/cache/clear', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ tenantId: currentTenantId }) }); } catch(e){}
+      }
       reportCache = {};
-      chartsInitialized = false;
       document.getElementById('report-content').innerHTML = '<div class="loading">Cargando reportes...</div>';
       const { fromDate, toDate } = getDateRange();
       const [pl, balance] = await Promise.all([
@@ -248,15 +313,20 @@
     }
 
     async function fetchReport(name, params) {
+      const cacheLocal = name + ':' + JSON.stringify(params);
+      if (reportCache[cacheLocal]) return reportCache[cacheLocal];
       const q = new URLSearchParams({ tenantId: currentTenantId, ...params });
       const res = await fetch(`/api/report/${name}?${q}`);
       const data = await res.json();
+      reportCache[cacheLocal] = data;
       reportCache[name] = data;
       return data;
     }
 
     function fmt(n) {
-      return (parseFloat(n) || 0).toLocaleString('es-CR', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
+      const v = parseFloat(n);
+      if (isNaN(v) || n === '' || n == null) return '';
+      return v.toLocaleString('es-CR', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
     }
 
     function updateMetrics(plData, balanceData) {
@@ -275,9 +345,7 @@
           }
           if (s.RowType === 'SummaryRow') {
             const l = (s.Cells?.[0]?.Value || '').toLowerCase();
-            if (l === 'net income' || l === 'net income / (loss)' || l === 'utilidad neta') {
-              netProfit = parseFloat(s.Cells?.[1]?.Value) || 0;
-            }
+            if (l === 'net income' || l === 'net income / (loss)' || l === 'utilidad neta') netProfit = parseFloat(s.Cells?.[1]?.Value) || 0;
           }
         });
         balanceData?.Reports?.[0]?.Rows?.forEach(s => {
@@ -300,144 +368,139 @@
         <div class="metric"><div class="metric-label">Gastos</div><div class="metric-value">${fmt(expenses)}</div></div>
         <div class="metric"><div class="metric-label">Utilidad neta</div><div class="metric-value ${netProfit >= 0 ? 'positive' : 'negative'}">${fmt(netProfit)}</div><div class="metric-sub ${netProfit >= 0 ? 'positive' : 'negative'}">${margin}% margen</div></div>
         <div class="metric"><div class="metric-label">Total activos</div><div class="metric-value">${fmt(totalAssets)}</div></div>
-        <div class="metric"><div class="metric-label">Total pasivos</div><div class="metric-value">${fmt(totalLiabilities)}</div></div>
-      `;
+        <div class="metric"><div class="metric-label">Total pasivos</div><div class="metric-value">${fmt(totalLiabilities)}</div></div>`;
     }
 
-    function buildCollapsibleTable(rows, sectionTitle) {
-      const id = 'sec_' + Math.random().toString(36).slice(2);
-      let html = `<table><tbody>
-        <tr class="section-header" onclick="toggleSection('${id}')"><td colspan="2">${sectionTitle}</td></tr>
-        </tbody></table>
-        <div id="${id}" class="section-rows">
-        <table><tbody>`;
-      rows.forEach(r => {
-        if (!r.Cells?.length || r.RowType === 'Header') return;
-        const label = r.Cells[0]?.Value || '';
-        const amount = r.Cells[1]?.Value || '';
-        if (!label) return;
-        const cls = r.RowType === 'SummaryRow' ? 'total-row' : '';
-        html += `<tr class="${cls}"><td>${label}</td><td class="amount">${amount ? fmt(amount) : ''}</td></tr>`;
+    // ── RENDER DE REPORTE MULTI-COLUMNA Y COLAPSABLE ─────────
+    // Lee las columnas reales del Header que devuelve Xero.
+    function getReportColumns(data) {
+      const headerRow = data?.Reports?.[0]?.Rows?.find(r => r.RowType === 'Header');
+      if (headerRow && headerRow.Cells?.length) {
+        return headerRow.Cells.slice(1).map(c => c.Value || '');
+      }
+      return ['Monto'];
+    }
+
+    function cellsToAmounts(cells) {
+      return (cells || []).slice(1).map(c => c?.Value);
+    }
+
+    let _secCounter = 0;
+    function renderReport(data) {
+      if (!data?.Reports?.[0]) return '<div class="empty">Sin datos disponibles.</div>';
+      const cols = getReportColumns(data);
+      let html = '<table><thead><tr><th>Concepto</th>' + cols.map(c => `<th class="amount">${c}</th>`).join('') + '</tr></thead></table>';
+      data.Reports[0].Rows?.forEach(section => {
+        if (section.RowType === 'Header') return;
+        if (section.RowType === 'Section') {
+          const secId = 'sec_' + (_secCounter++);
+          const detailRows = (section.Rows || []).filter(r => r.RowType === 'Row');
+          const summaryRows = (section.Rows || []).filter(r => r.RowType === 'SummaryRow');
+          const colspan = cols.length + 1;
+          // Encabezado de sección (clic para colapsar) — SIEMPRE visible
+          html += `<table><tbody>`;
+          html += `<tr class="section-header" onclick="toggleSection('${secId}')"><td colspan="${colspan}"><span class="chev" id="${secId}_chev">▲</span>${section.Title || ''}</td></tr>`;
+          html += `</tbody></table>`;
+          // Detalle (colapsable)
+          html += `<table id="${secId}" class="section-detail"><tbody>`;
+          detailRows.forEach(r => {
+            const amts = cellsToAmounts(r.Cells);
+            html += `<tr class="row-detail"><td>${r.Cells?.[0]?.Value || ''}</td>${amts.map(a => `<td class="amount">${fmt(a)}</td>`).join('')}</tr>`;
+          });
+          html += `</tbody></table>`;
+          // Totales de la sección — SIEMPRE visibles
+          if (summaryRows.length) {
+            html += `<table><tbody>`;
+            summaryRows.forEach(r => {
+              const amts = cellsToAmounts(r.Cells);
+              html += `<tr class="total-row"><td>${r.Cells?.[0]?.Value || ''}</td>${amts.map(a => `<td class="amount">${fmt(a)}</td>`).join('')}</tr>`;
+            });
+            html += `</tbody></table>`;
+          }
+        } else if (section.RowType === 'SummaryRow' && section.Cells) {
+          const amts = cellsToAmounts(section.Cells);
+          html += `<table><tbody><tr class="total-row"><td>${section.Cells[0]?.Value || ''}</td>${amts.map(a => `<td class="amount">${fmt(a)}</td>`).join('')}</tr></tbody></table>`;
+        }
       });
-      html += '</tbody></table></div>';
       return html;
     }
 
     function toggleSection(id) {
       const el = document.getElementById(id);
+      const chev = document.getElementById(id + '_chev');
       if (!el) return;
-      el.classList.toggle('collapsed');
-      const header = el.previousElementSibling?.querySelector('.section-header');
-      if (header) header.classList.toggle('collapsed');
+      const collapsed = el.classList.toggle('collapsed');
+      if (chev) chev.textContent = collapsed ? '▼' : '▲';
     }
 
-    function renderReport(data) {
-      if (!data?.Reports?.[0]) return '<div class="empty">Sin datos disponibles.</div>';
-      let html = '<table><thead><tr><th>Concepto</th><th class="amount">Monto</th></tr></thead></table>';
-      data.Reports[0].Rows?.forEach(section => {
-        if (section.RowType === 'Header') return;
-        if (section.Title && section.Rows?.length) {
-          html += buildCollapsibleTable(section.Rows, section.Title);
-        } else if (section.RowType === 'SummaryRow' && section.Cells) {
-          html += `<table><tbody><tr class="total-row"><td>${section.Cells[0]?.Value || ''}</td><td class="amount">${fmt(section.Cells[1]?.Value)}</td></tr></tbody></table>`;
-        }
+    function collapseAll(collapse) {
+      document.querySelectorAll('.section-detail').forEach(el => {
+        el.classList.toggle('collapsed', collapse);
+        const chev = document.getElementById(el.id + '_chev');
+        if (chev) chev.textContent = collapse ? '▼' : '▲';
       });
-      return html || '<div class="empty">Sin datos disponibles.</div>';
+    }
+
+    function reportToolbar() {
+      return `<div class="report-toolbar">
+        <button class="btn-mini" onclick="collapseAll(true)">Comprimir todo</button>
+        <button class="btn-mini" onclick="collapseAll(false)">Expandir todo</button>
+      </div>`;
+    }
+
+    async function showTabContent(tab) {
+      currentTab = tab;
+      if (tab === 'graficos') { await renderCharts(); return; }
+      if (tab === 'proyeccion') { await renderProjection(); return; }
+      if (tab === 'razones') { renderRazones(); return; }
+
+      const { fromDate, toDate } = getDateRange();
+      const viewParams = getViewParams();
+      let reportName, params;
+      if (tab === 'pl') { reportName = 'ProfitAndLoss'; params = viewParams ? { toDate, ...viewParams } : { fromDate, toDate }; }
+      else if (tab === 'balance') { reportName = 'BalanceSheet'; params = viewParams ? { date: toDate, ...viewParams } : { date: toDate }; }
+      else { reportName = 'BankSummary'; params = { fromDate, toDate }; }
+
+      document.getElementById('report-content').innerHTML = '<div class="loading">Cargando...</div>';
+      const data = await fetchReport(reportName, params);
+      document.getElementById('report-content').innerHTML = reportToolbar() + renderReport(data);
+    }
+
+    function showTab(name, btn) {
+      currentTab = name;
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      showTabContent(name);
     }
 
     // ── GRÁFICOS ────────────────────────────────────────────
     async function renderCharts() {
       const rc = document.getElementById('report-content');
       rc.innerHTML = '<div class="loading">Cargando gráficos...</div>';
-
-      const now = new Date();
-      const year = now.getFullYear();
-
-      // P&L mensual de los últimos 12 meses
-      if (!reportCache['PLMonthly']) {
-        const res = await fetch(`/api/report/ProfitAndLoss?tenantId=${currentTenantId}&fromDate=${year}-01-01&toDate=${now.toISOString().split('T')[0]}&periods=11&timeframe=MONTH`);
-        reportCache['PLMonthly'] = await res.json();
-      }
-
-      const plMonthly = reportCache['PLMonthly'];
-      const headers = plMonthly?.Reports?.[0]?.Rows?.find(r => r.RowType === 'Header')?.Cells?.slice(1).map(c => c.Value) || [];
-      let revenueByMonth = new Array(headers.length).fill(0);
-      let expenseByMonth = new Array(headers.length).fill(0);
-      let netByMonth = new Array(headers.length).fill(0);
-
-      plMonthly?.Reports?.[0]?.Rows?.forEach(s => {
+      const now = new Date(); const year = now.getFullYear();
+      const pm = await fetchReport('ProfitAndLoss', { toDate: now.toISOString().split('T')[0], periods: 11, timeframe: 'MONTH' });
+      const headers = (pm?.Reports?.[0]?.Rows?.find(r => r.RowType === 'Header')?.Cells?.slice(1).map(c => c.Value)) || [];
+      let revM = new Array(headers.length).fill(0), expM = new Array(headers.length).fill(0), netM = new Array(headers.length).fill(0);
+      pm?.Reports?.[0]?.Rows?.forEach(s => {
         if (s.RowType === 'Section') {
-          const t = (s.Title || '').toLowerCase();
-          s.Rows?.forEach(r => {
-            if (r.RowType === 'SummaryRow') {
-              r.Cells?.slice(1).forEach((c, i) => {
-                const v = parseFloat(c.Value) || 0;
-                if (t === 'revenue' || t === 'income') revenueByMonth[i] += v;
-                if (t.includes('expense') || t.includes('gasto')) expenseByMonth[i] += Math.abs(v);
-              });
-            }
-          });
+          const t = (s.Title||'').toLowerCase();
+          s.Rows?.forEach(r => { if (r.RowType==='SummaryRow') r.Cells?.slice(1).forEach((c,i)=>{ const v=parseFloat(c.Value)||0; if(t==='revenue'||t==='income')revM[i]+=v; if(t.includes('expense')||t.includes('gasto'))expM[i]+=Math.abs(v); }); });
         }
-        if (s.RowType === 'SummaryRow') {
-          const l = (s.Cells?.[0]?.Value || '').toLowerCase();
-          if (l.includes('net income')) {
-            s.Cells?.slice(1).forEach((c, i) => { netByMonth[i] = parseFloat(c.Value) || 0; });
-          }
-        }
+        if (s.RowType==='SummaryRow' && (s.Cells?.[0]?.Value||'').toLowerCase().includes('net income')) s.Cells?.slice(1).forEach((c,i)=>{ netM[i]=parseFloat(c.Value)||0; });
       });
-
       rc.innerHTML = `<div class="charts-grid">
-        <div class="chart-card"><div class="chart-title">Ingresos vs Gastos por mes</div><div class="chart-wrap"><canvas id="chartRevExp"></canvas></div></div>
-        <div class="chart-card"><div class="chart-title">Utilidad neta por mes</div><div class="chart-wrap"><canvas id="chartNet"></canvas></div></div>
-        <div class="chart-card"><div class="chart-title">Composición del P&L actual</div><div class="chart-wrap"><canvas id="chartPie"></canvas></div></div>
-        <div class="chart-card"><div class="chart-title">Activos vs Pasivos</div><div class="chart-wrap"><canvas id="chartBalance"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Ingresos vs Gastos por mes</div><div class="chart-wrap"><canvas id="c1"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Utilidad neta por mes</div><div class="chart-wrap"><canvas id="c2"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Composición actual</div><div class="chart-wrap"><canvas id="c3"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Activos vs Pasivos</div><div class="chart-wrap"><canvas id="c4"></canvas></div></div>
       </div>`;
-
-      // Destruir instancias anteriores
-      Object.values(chartInstances).forEach(c => c.destroy());
-      chartInstances = {};
-
-      const colors = { blue: '#13B5EA', green: '#16a34a', red: '#dc2626', orange: '#f59e0b', purple: '#7c3aed' };
-
-      chartInstances.revExp = new Chart(document.getElementById('chartRevExp'), {
-        type: 'bar',
-        data: {
-          labels: headers,
-          datasets: [
-            { label: 'Ingresos', data: revenueByMonth, backgroundColor: colors.blue + '99', borderColor: colors.blue, borderWidth: 1 },
-            { label: 'Gastos', data: expenseByMonth, backgroundColor: colors.red + '99', borderColor: colors.red, borderWidth: 1 }
-          ]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }, scales: { y: { ticks: { font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(0) + 'k' } } } }
-      });
-
-      chartInstances.net = new Chart(document.getElementById('chartNet'), {
-        type: 'line',
-        data: {
-          labels: headers,
-          datasets: [{ label: 'Utilidad neta', data: netByMonth, borderColor: colors.green, backgroundColor: colors.green + '22', fill: true, tension: 0.3 }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(0) + 'k' } } } }
-      });
-
-      const m = reportCache['_metrics'] || {};
-      chartInstances.pie = new Chart(document.getElementById('chartPie'), {
-        type: 'doughnut',
-        data: {
-          labels: ['Utilidad neta', 'Gastos operativos'],
-          datasets: [{ data: [Math.max(0, m.netProfit || 0), Math.max(0, m.expenses || 0)], backgroundColor: [colors.green, colors.red], borderWidth: 2 }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
-      });
-
-      chartInstances.bal = new Chart(document.getElementById('chartBalance'), {
-        type: 'bar',
-        data: {
-          labels: ['Activos', 'Pasivos', 'Patrimonio'],
-          datasets: [{ data: [m.totalAssets || 0, m.totalLiabilities || 0, Math.max(0, (m.totalAssets || 0) - (m.totalLiabilities || 0))], backgroundColor: [colors.blue, colors.red, colors.green] }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(0) + 'k' } } } }
-      });
+      Object.values(chartInstances).forEach(c => c.destroy()); chartInstances = {};
+      const col = { blue:'#13B5EA', green:'#16a34a', red:'#dc2626' };
+      chartInstances.c1 = new Chart(document.getElementById('c1'), { type:'bar', data:{ labels:headers, datasets:[{label:'Ingresos',data:revM,backgroundColor:col.blue+'99',borderColor:col.blue,borderWidth:1},{label:'Gastos',data:expM,backgroundColor:col.red+'99',borderColor:col.red,borderWidth:1}] }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},scales:{y:{ticks:{font:{size:10},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}} });
+      chartInstances.c2 = new Chart(document.getElementById('c2'), { type:'line', data:{ labels:headers, datasets:[{label:'Utilidad neta',data:netM,borderColor:col.green,backgroundColor:col.green+'22',fill:true,tension:0.3}] }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{font:{size:10},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}} });
+      const m = reportCache['_metrics']||{};
+      chartInstances.c3 = new Chart(document.getElementById('c3'), { type:'doughnut', data:{ labels:['Utilidad neta','Gastos'], datasets:[{data:[Math.max(0,m.netProfit||0),Math.max(0,m.expenses||0)],backgroundColor:[col.green,col.red],borderWidth:2}] }, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11}}}}} });
+      chartInstances.c4 = new Chart(document.getElementById('c4'), { type:'bar', data:{ labels:['Activos','Pasivos','Patrimonio'], datasets:[{data:[m.totalAssets||0,m.totalLiabilities||0,Math.max(0,(m.totalAssets||0)-(m.totalLiabilities||0))],backgroundColor:[col.blue,col.red,col.green]}] }, options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}} });
     }
 
     // ── PROYECCIÓN ───────────────────────────────────────────
@@ -453,315 +516,137 @@
           <select id="proj-month" style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;">
             ${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((m,i)=>`<option value="${i}">${m}</option>`).join('')}
           </select>
-          <button class="btn-project" onclick="calcProjection()">Calcular proyección</button>
+          <button class="btn-project" onclick="calcProjection()">Calcular</button>
         </div>
         <div id="proj-result"></div>
       </div>`;
-
-      // Pre-cargar datos mensuales si no están
-      if (!reportCache['PLMonthly']) {
-        const now = new Date();
-        const res = await fetch(`/api/report/ProfitAndLoss?tenantId=${currentTenantId}&fromDate=${now.getFullYear()-1}-01-01&toDate=${now.toISOString().split('T')[0]}&periods=11&timeframe=MONTH`);
-        reportCache['PLMonthly'] = await res.json();
-      }
-
-      // Seleccionar mes actual
-      document.getElementById('proj-month').value = new Date().getMonth();
+      const now = new Date();
+      await fetchReport('ProfitAndLoss', { toDate: now.toISOString().split('T')[0], periods: 11, timeframe: 'MONTH' });
+      document.getElementById('proj-month').value = now.getMonth();
       calcProjection();
     }
 
     function calcProjection() {
       const extraGasto = parseFloat(document.getElementById('proj-extra').value) || 0;
       const extraMes = parseInt(document.getElementById('proj-month').value);
-      const plMonthly = reportCache['PLMonthly'];
-      if (!plMonthly) return;
-
-      // Extraer promedios mensuales
-      let revenueCells = [], expenseCells = [];
-      plMonthly?.Reports?.[0]?.Rows?.forEach(s => {
-        if (s.RowType === 'Section') {
-          const t = (s.Title || '').toLowerCase();
-          s.Rows?.forEach(r => {
-            if (r.RowType === 'SummaryRow') {
-              if (t === 'revenue' || t === 'income') revenueCells = r.Cells?.slice(1).map(c => parseFloat(c.Value) || 0) || [];
-              if (t.includes('expense') || t.includes('gasto')) expenseCells = r.Cells?.slice(1).map(c => Math.abs(parseFloat(c.Value) || 0)) || [];
-            }
-          });
+      const now = new Date();
+      const pm = reportCache['ProfitAndLoss:' + JSON.stringify({ toDate: now.toISOString().split('T')[0], periods: 11, timeframe: 'MONTH' })] || reportCache['ProfitAndLoss'];
+      if (!pm) return;
+      let revCells = [], expCells = [];
+      pm?.Reports?.[0]?.Rows?.forEach(s => {
+        if (s.RowType==='Section') {
+          const t=(s.Title||'').toLowerCase();
+          s.Rows?.forEach(r => { if(r.RowType==='SummaryRow'){ if(t==='revenue'||t==='income')revCells=r.Cells?.slice(1).map(c=>parseFloat(c.Value)||0)||[]; if(t.includes('expense')||t.includes('gasto'))expCells=r.Cells?.slice(1).map(c=>Math.abs(parseFloat(c.Value)||0))||[]; } });
         }
       });
-
-      const avgRevenue = revenueCells.length ? revenueCells.reduce((a,b)=>a+b,0)/revenueCells.length : 0;
-      const avgExpense = expenseCells.length ? expenseCells.reduce((a,b)=>a+b,0)/expenseCells.length : 0;
-      const avgNet = avgRevenue - avgExpense;
-
+      const avgRev = revCells.length ? revCells.reduce((a,b)=>a+b,0)/revCells.length : 0;
+      const avgExp = expCells.length ? expCells.reduce((a,b)=>a+b,0)/expCells.length : 0;
       const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-      const now = new Date();
-      let balance = reportCache['_metrics']?.totalAssets || 0;
-      const m = reportCache['_metrics'] || {};
-      // Usar saldo de caja como punto de partida (aproximado)
-      let cajaInicial = m.currentAssets || (m.totalAssets * 0.3);
-
-      let html = `<div class="projection-result">
-        <strong>Proyección a 6 meses</strong> — Ingreso promedio mensual: ${fmt(avgRevenue)} | Gasto promedio: ${fmt(avgExpense)}
-        ${extraGasto > 0 ? `<br>⚠️ Gasto extraordinario de <strong>${fmt(extraGasto)}</strong> en <strong>${meses[extraMes]}</strong>` : ''}
-        <div class="proj-months">`;
-
-      let saldo = cajaInicial;
-      for (let i = 0; i < 6; i++) {
-        const mesIdx = (now.getMonth() + i) % 12;
-        const gasto = avgExpense + (i === 0 && extraMes === mesIdx ? extraGasto : (extraMes === mesIdx ? extraGasto : 0));
-        const flujo = avgRevenue - gasto;
-        saldo += flujo;
-        const alerta = saldo < 0 ? '⚠️ Flujo negativo' : saldo < avgExpense ? '⚠️ Saldo bajo' : '';
-        html += `<div class="proj-month">
-          <div class="proj-month-name">${meses[mesIdx]}</div>
-          <div class="proj-month-balance ${saldo < 0 ? 'negative' : 'positive'}">${fmt(saldo)}</div>
-          <div style="font-size:10px;color:#666;">Flujo: ${flujo >= 0 ? '+' : ''}${fmt(flujo)}</div>
-          ${alerta ? `<div class="proj-month-note">${alerta}</div>` : ''}
-        </div>`;
+      const m = reportCache['_metrics']||{};
+      let saldo = m.currentAssets || (m.totalAssets*0.3) || 0;
+      let html = `<div class="projection-result"><strong>Proyección a 6 meses</strong> — Ingreso prom.: ${fmt(avgRev)} | Gasto prom.: ${fmt(avgExp)}${extraGasto>0?`<br>⚠️ Gasto extraordinario de <strong>${fmt(extraGasto)}</strong> en <strong>${meses[extraMes]}</strong>`:''}<div class="proj-months">`;
+      for (let i=0;i<6;i++){
+        const mi=(now.getMonth()+i)%12;
+        const gasto=avgExp+(extraMes===mi?extraGasto:0);
+        const flujo=avgRev-gasto; saldo+=flujo;
+        const alerta=saldo<0?'⚠️ Flujo negativo':saldo<avgExp?'⚠️ Saldo bajo':'';
+        html+=`<div class="proj-month"><div class="proj-month-name">${meses[mi]}</div><div class="proj-month-balance ${saldo<0?'negative':'positive'}">${fmt(saldo)}</div><div style="font-size:10px;color:#666;">Flujo: ${flujo>=0?'+':''}${fmt(flujo)}</div>${alerta?`<div class="proj-month-note">${alerta}</div>`:''}</div>`;
       }
-      html += '</div></div>';
+      html+='</div></div>';
       document.getElementById('proj-result').innerHTML = html;
     }
 
-    // ── RAZONES FINANCIERAS ──────────────────────────────────
+    // ── RAZONES ──────────────────────────────────────────────
     function renderRazones() {
-      const m = reportCache['_metrics'] || {};
-      const { revenue = 0, expenses = 0, netProfit = 0, totalAssets = 0, totalLiabilities = 0, currentAssets = 0 } = m;
-      const equity = totalAssets - totalLiabilities;
-      const currentLiab = totalLiabilities * 0.6; // estimado
-      const grossProfit = revenue - (expenses * 0.4);
-
+      const m = reportCache['_metrics']||{};
+      const { revenue=0, expenses=0, netProfit=0, totalAssets=0, totalLiabilities=0, currentAssets=0 } = m;
+      const equity = totalAssets-totalLiabilities;
+      const currentLiab = totalLiabilities*0.6;
+      const grossProfit = revenue-(expenses*0.4);
       const ratios = [
-        { name: 'Margen bruto', value: revenue ? ((grossProfit/revenue)*100).toFixed(1)+'%' : 'N/A', desc: 'Rentabilidad después de costos directos', status: grossProfit/revenue > 0.4 ? 'good' : grossProfit/revenue > 0.2 ? 'warn' : 'bad' },
-        { name: 'Margen neto', value: revenue ? ((netProfit/revenue)*100).toFixed(1)+'%' : 'N/A', desc: 'Rentabilidad final sobre ingresos', status: netProfit/revenue > 0.15 ? 'good' : netProfit/revenue > 0.05 ? 'warn' : 'bad' },
-        { name: 'ROA', value: totalAssets ? ((netProfit/totalAssets)*100).toFixed(1)+'%' : 'N/A', desc: 'Retorno sobre activos totales', status: netProfit/totalAssets > 0.1 ? 'good' : netProfit/totalAssets > 0.05 ? 'warn' : 'bad' },
-        { name: 'ROE', value: equity ? ((netProfit/equity)*100).toFixed(1)+'%' : 'N/A', desc: 'Retorno sobre patrimonio', status: netProfit/equity > 0.15 ? 'good' : netProfit/equity > 0.08 ? 'warn' : 'bad' },
-        { name: 'Liquidez corriente', value: currentLiab ? (currentAssets/currentLiab).toFixed(2) : 'N/A', desc: 'Capacidad de pago a corto plazo (>1.5 ideal)', status: currentAssets/currentLiab > 1.5 ? 'good' : currentAssets/currentLiab > 1 ? 'warn' : 'bad' },
-        { name: 'Endeudamiento', value: totalAssets ? ((totalLiabilities/totalAssets)*100).toFixed(1)+'%' : 'N/A', desc: 'Porcentaje de activos financiados con deuda', status: totalLiabilities/totalAssets < 0.4 ? 'good' : totalLiabilities/totalAssets < 0.6 ? 'warn' : 'bad' },
-        { name: 'EBITDA aprox.', value: fmt(netProfit + expenses * 0.1), desc: 'Utilidad antes de intereses, impuestos y depreciación', status: netProfit > 0 ? 'good' : 'bad' },
-        { name: 'Razón deuda/equity', value: equity ? (totalLiabilities/equity).toFixed(2) : 'N/A', desc: 'Apalancamiento financiero (<1 conservador)', status: totalLiabilities/equity < 0.5 ? 'good' : totalLiabilities/equity < 1 ? 'warn' : 'bad' },
+        { name:'Margen bruto', value: revenue?((grossProfit/revenue)*100).toFixed(1)+'%':'N/A', desc:'Rentabilidad después de costos directos', status: grossProfit/revenue>0.4?'good':grossProfit/revenue>0.2?'warn':'bad' },
+        { name:'Margen neto', value: revenue?((netProfit/revenue)*100).toFixed(1)+'%':'N/A', desc:'Rentabilidad final sobre ingresos', status: netProfit/revenue>0.15?'good':netProfit/revenue>0.05?'warn':'bad' },
+        { name:'ROA', value: totalAssets?((netProfit/totalAssets)*100).toFixed(1)+'%':'N/A', desc:'Retorno sobre activos', status: netProfit/totalAssets>0.1?'good':netProfit/totalAssets>0.05?'warn':'bad' },
+        { name:'ROE', value: equity?((netProfit/equity)*100).toFixed(1)+'%':'N/A', desc:'Retorno sobre patrimonio', status: netProfit/equity>0.15?'good':netProfit/equity>0.08?'warn':'bad' },
+        { name:'Liquidez corriente', value: currentLiab?(currentAssets/currentLiab).toFixed(2):'N/A', desc:'Pago a corto plazo (>1.5 ideal)', status: currentAssets/currentLiab>1.5?'good':currentAssets/currentLiab>1?'warn':'bad' },
+        { name:'Endeudamiento', value: totalAssets?((totalLiabilities/totalAssets)*100).toFixed(1)+'%':'N/A', desc:'Activos financiados con deuda', status: totalLiabilities/totalAssets<0.4?'good':totalLiabilities/totalAssets<0.6?'warn':'bad' },
+        { name:'EBITDA aprox.', value: fmt(netProfit+expenses*0.1), desc:'Aproximación antes de int., imp. y deprec.', status: netProfit>0?'good':'bad' },
+        { name:'Deuda / Patrimonio', value: equity?(totalLiabilities/equity).toFixed(2):'N/A', desc:'Apalancamiento (<1 conservador)', status: totalLiabilities/equity<0.5?'good':totalLiabilities/equity<1?'warn':'bad' },
       ];
-
-      const rc = document.getElementById('report-content');
-      rc.innerHTML = `<div class="ratios-grid">${ratios.map(r => `
-        <div class="ratio-card ratio-${r.status}">
-          <div class="ratio-name">${r.name}</div>
-          <div class="ratio-value">${r.value}</div>
-          <div class="ratio-desc">${r.desc}</div>
-        </div>`).join('')}</div>`;
-    }
-
-    async function showTabContent(tab) {
-      currentTab = tab;
-      if (tab === 'graficos') { await renderCharts(); return; }
-      if (tab === 'proyeccion') { await renderProjection(); return; }
-      if (tab === 'razones') { renderRazones(); return; }
-
-      const { fromDate, toDate } = getDateRange();
-      let data, reportName, params;
-      if (tab === 'pl') { reportName = 'ProfitAndLoss'; params = { fromDate, toDate }; }
-      else if (tab === 'balance') { reportName = 'BalanceSheet'; params = { date: toDate }; }
-      else { reportName = 'BankSummary'; params = { fromDate, toDate }; }
-      if (!reportCache[reportName]) {
-        document.getElementById('report-content').innerHTML = '<div class="loading">Cargando...</div>';
-        data = await fetchReport(reportName, params);
-      } else {
-        data = reportCache[reportName];
-      }
-      document.getElementById('report-content').innerHTML = renderReport(data);
-    }
-
-    function showTab(name, btn) {
-      currentTab = name;
-      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      showTabContent(name);
+      document.getElementById('report-content').innerHTML =
+        `<div style="padding:12px 16px;font-size:12px;color:#999;border-bottom:1px solid #f0f0f0;">Algunas razones usan estimaciones cuando Xero no separa el dato exacto. Para uso contable formal, validar con tu contador.</div>
+         <div class="ratios-grid">${ratios.map(r=>`<div class="ratio-card ratio-${r.status}"><div class="ratio-name">${r.name}</div><div class="ratio-value">${r.value}</div><div class="ratio-desc">${r.desc}</div></div>`).join('')}</div>`;
     }
 
     // ── CHAT ──────────────────────────────────────────────────
-    function handleKey(e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-    }
-
-    function sendSuggestion(el) {
-      document.getElementById('chat-input').value = el.textContent;
-      sendMessage();
-    }
-
-    function addMessage(role, html) {
-      const msgs = document.getElementById('chat-messages');
-      const div = document.createElement('div');
-      div.className = `msg ${role}`;
-      div.innerHTML = `<div class="msg-avatar">${role === 'ai' ? 'AI' : 'Tú'}</div><div class="msg-bubble">${html}</div>`;
-      msgs.appendChild(div);
-      msgs.scrollTop = msgs.scrollHeight;
-    }
-
-    function addTyping() {
-      const msgs = document.getElementById('chat-messages');
-      const div = document.createElement('div');
-      div.className = 'msg ai'; div.id = 'typing-indicator';
-      div.innerHTML = `<div class="msg-avatar">AI</div><div class="msg-bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
-      msgs.appendChild(div);
-      msgs.scrollTop = msgs.scrollHeight;
-    }
-
-    function removeTyping() {
-      const t = document.getElementById('typing-indicator');
-      if (t) t.remove();
-    }
+    function handleKey(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendMessage(); } }
+    function sendSuggestion(el){ document.getElementById('chat-input').value=el.textContent; sendMessage(); }
+    function addMessage(role,html){ const m=document.getElementById('chat-messages'); const d=document.createElement('div'); d.className=`msg ${role}`; d.innerHTML=`<div class="msg-avatar">${role==='ai'?'AI':'Tú'}</div><div class="msg-bubble">${html}</div>`; m.appendChild(d); m.scrollTop=m.scrollHeight; }
+    function addTyping(){ const m=document.getElementById('chat-messages'); const d=document.createElement('div'); d.className='msg ai'; d.id='typing-indicator'; d.innerHTML=`<div class="msg-avatar">AI</div><div class="msg-bubble"><div class="typing"><span></span><span></span><span></span></div></div>`; m.appendChild(d); m.scrollTop=m.scrollHeight; }
+    function removeTyping(){ const t=document.getElementById('typing-indicator'); if(t)t.remove(); }
 
     async function gatherXeroContext(userMsg) {
-      const now = new Date();
-      const year = now.getFullYear();
+      const now = new Date(); const year = now.getFullYear();
       const context = { today: now.toISOString().split('T')[0] };
       const msg = userMsg.toLowerCase();
-
       try {
-        // P&L mensual para preguntas de tendencias y mes que más vendió
         if (/mes|month|vend|trend|tendencia|compor|extrañ|anual|año|year|compar/i.test(msg)) {
-          if (!reportCache['PLMonthly']) {
-            const res = await fetch(`/api/report/ProfitAndLoss?tenantId=${currentTenantId}&fromDate=${year-1}-01-01&toDate=${now.toISOString().split('T')[0]}&periods=11&timeframe=MONTH`);
-            reportCache['PLMonthly'] = await res.json();
-          }
-          // Extraer resumen mensual
-          const plM = reportCache['PLMonthly'];
-          const headers = plM?.Reports?.[0]?.Rows?.find(r=>r.RowType==='Header')?.Cells?.slice(1).map(c=>c.Value) || [];
-          let revenueRows = [], expenseRows = [];
-          plM?.Reports?.[0]?.Rows?.forEach(s => {
-            if (s.RowType === 'Section') {
-              const t = (s.Title||'').toLowerCase();
-              s.Rows?.forEach(r => {
-                if (r.RowType === 'SummaryRow') {
-                  if (t==='revenue'||t==='income') revenueRows = r.Cells?.slice(1).map((c,i)=>({mes:headers[i],valor:parseFloat(c.Value)||0})) || [];
-                  if (t.includes('expense')||t.includes('gasto')) expenseRows = r.Cells?.slice(1).map((c,i)=>({mes:headers[i],valor:Math.abs(parseFloat(c.Value)||0)})) || [];
-                }
-              });
-            }
-          });
-          context.ingresosPorMes = revenueRows;
-          context.gastosPorMes = expenseRows;
+          const pm = await fetchReport('ProfitAndLoss', { toDate: now.toISOString().split('T')[0], periods: 11, timeframe: 'MONTH' });
+          const headers = pm?.Reports?.[0]?.Rows?.find(r=>r.RowType==='Header')?.Cells?.slice(1).map(c=>c.Value)||[];
+          let rev=[],exp=[];
+          pm?.Reports?.[0]?.Rows?.forEach(s=>{ if(s.RowType==='Section'){ const t=(s.Title||'').toLowerCase(); s.Rows?.forEach(r=>{ if(r.RowType==='SummaryRow'){ if(t==='revenue'||t==='income')rev=r.Cells?.slice(1).map((c,i)=>({mes:headers[i],valor:parseFloat(c.Value)||0}))||[]; if(t.includes('expense')||t.includes('gasto'))exp=r.Cells?.slice(1).map((c,i)=>({mes:headers[i],valor:Math.abs(parseFloat(c.Value)||0)}))||[]; } }); } });
+          context.ingresosPorMes = rev; context.gastosPorMes = exp;
         }
-
-        // Clientes / CXC
         if (/client|compr|deb|cxc|cobr|quien|who/i.test(msg)) {
-          const invRes = await fetch(`/api/invoices?tenantId=${currentTenantId}&type=ACCREC&status=AUTHORISED,SUBMITTED`);
-          const invData = await invRes.json();
-          const invoices = invData?.Invoices || [];
-          // Agrupar por cliente
-          const byContact = {};
-          invoices.forEach(inv => {
-            const name = inv.Contact?.Name || 'Desconocido';
-            if (!byContact[name]) byContact[name] = { total: 0, pendiente: 0, count: 0 };
-            byContact[name].total += inv.Total || 0;
-            byContact[name].pendiente += inv.AmountDue || 0;
-            byContact[name].count++;
-          });
-          context.clientesPorFacturacion = Object.entries(byContact)
-            .map(([nombre, d]) => ({ nombre, totalFacturado: d.total, pendiente: d.pendiente, facturas: d.count }))
-            .sort((a,b) => b.totalFacturado - a.totalFacturado)
-            .slice(0, 15);
+          const inv = await (await fetch(`/api/invoices?tenantId=${currentTenantId}&type=ACCREC&status=AUTHORISED,SUBMITTED`)).json();
+          const by={}; (inv?.Invoices||[]).forEach(v=>{ const n=v.Contact?.Name||'Desconocido'; by[n]=by[n]||{total:0,pend:0,c:0}; by[n].total+=v.Total||0; by[n].pend+=v.AmountDue||0; by[n].c++; });
+          context.clientes = Object.entries(by).map(([nombre,d])=>({nombre,totalFacturado:d.total,pendiente:d.pend,facturas:d.c})).sort((a,b)=>b.totalFacturado-a.totalFacturado).slice(0,15);
         }
-
-        // CXP / proveedores
         if (/debo|pagar|proveedor|cxp|supplier|vendor|owed/i.test(msg)) {
-          const apRes = await fetch(`/api/invoices?tenantId=${currentTenantId}&type=ACCPAY&status=AUTHORISED,SUBMITTED`);
-          const apData = await apRes.json();
-          const apInvoices = apData?.Invoices || [];
-          const bySupplier = {};
-          apInvoices.forEach(inv => {
-            const name = inv.Contact?.Name || 'Desconocido';
-            if (!bySupplier[name]) bySupplier[name] = { total: 0, pendiente: 0 };
-            bySupplier[name].total += inv.Total || 0;
-            bySupplier[name].pendiente += inv.AmountDue || 0;
-          });
-          context.proveedoresPorDeuda = Object.entries(bySupplier)
-            .map(([nombre, d]) => ({ nombre, totalDeuda: d.pendiente }))
-            .sort((a,b) => b.totalDeuda - a.totalDeuda)
-            .slice(0, 15);
+          const ap = await (await fetch(`/api/invoices?tenantId=${currentTenantId}&type=ACCPAY&status=AUTHORISED,SUBMITTED`)).json();
+          const by={}; (ap?.Invoices||[]).forEach(v=>{ const n=v.Contact?.Name||'Desconocido'; by[n]=by[n]||{pend:0}; by[n].pend+=v.AmountDue||0; });
+          context.proveedores = Object.entries(by).map(([nombre,d])=>({nombre,totalDeuda:d.pend})).sort((a,b)=>b.totalDeuda-a.totalDeuda).slice(0,15);
         }
-
-        // Siempre incluir P&L y balance actuales
         const { fromDate, toDate } = getDateRange();
-        if (!reportCache['ProfitAndLoss']) await fetchReport('ProfitAndLoss', { fromDate, toDate });
-        if (!reportCache['BalanceSheet']) await fetchReport('BalanceSheet', { date: toDate });
-
-        context.plActual = extractSummary(reportCache['ProfitAndLoss']);
-        context.balanceActual = extractSummary(reportCache['BalanceSheet']);
+        const pl = await fetchReport('ProfitAndLoss', { fromDate, toDate });
+        const bal = await fetchReport('BalanceSheet', { date: toDate });
+        context.plActual = extractSummary(pl);
+        context.balanceActual = extractSummary(bal);
         context.metricas = reportCache['_metrics'];
-
-      } catch(e) { console.error(e); }
+      } catch(e){ console.error(e); }
       return context;
     }
 
     function extractSummary(data) {
-      const result = {};
-      data?.Reports?.[0]?.Rows?.forEach(s => {
-        ['Row','SummaryRow'].forEach(type => {
-          if (s.RowType === type) {
-            const label = s.Cells?.[0]?.Value;
-            const val = s.Cells?.[1]?.Value;
-            if (label && val) result[label] = val;
-          }
-        });
-        if (s.RowType === 'Section' && s.Rows) {
-          s.Rows.forEach(r => {
-            const label = r.Cells?.[0]?.Value;
-            const val = r.Cells?.[1]?.Value;
-            if (label && val) result[label] = val;
-          });
-        }
+      const r={};
+      data?.Reports?.[0]?.Rows?.forEach(s=>{
+        if(s.RowType==='Row'||s.RowType==='SummaryRow'){ const l=s.Cells?.[0]?.Value, v=s.Cells?.[1]?.Value; if(l&&v)r[l]=v; }
+        if(s.RowType==='Section'&&s.Rows){ s.Rows.forEach(x=>{ const l=x.Cells?.[0]?.Value, v=x.Cells?.[1]?.Value; if(l&&v)r[l]=v; }); }
       });
-      return result;
+      return r;
     }
 
     async function sendMessage() {
       const input = document.getElementById('chat-input');
-      const msg = input.value.trim();
-      if (!msg) return;
-      input.value = '';
-      document.getElementById('chat-send').disabled = true;
-
-      addMessage('user', msg);
-      addTyping();
-
-      const xeroContext = await gatherXeroContext(msg);
-      chatHistory.push({ role: 'user', content: msg });
-
-      const systemPrompt = `Eres un asistente financiero y analista experto que analiza datos reales de Xero.
-Responde siempre en español. Sé conciso, directo y útil.
-Cuando presentes tablas usa HTML: <table><tr><th>...</th><td>...</td></tr></table>
-Para énfasis usa <strong>. Para listas usa <ul><li>.
-Actúa como un CFO o auditor cuando te lo pidan — identifica riesgos, anomalías y oportunidades.
-
+      const msg = input.value.trim(); if(!msg) return;
+      input.value=''; document.getElementById('chat-send').disabled=true;
+      addMessage('user', msg); addTyping();
+      const ctx = await gatherXeroContext(msg);
+      chatHistory.push({ role:'user', content: msg });
+      const sys = `Eres un asistente financiero y analista experto que analiza datos reales de Xero.
+Responde en español, conciso y útil. Tablas en HTML simple. Énfasis con <strong>, listas con <ul><li>.
+Actúa como CFO o auditor cuando lo pidan: identifica riesgos, anomalías y oportunidades.
 DATOS REALES DE XERO:
-${JSON.stringify(xeroContext, null, 2)}
-
-Fecha hoy: ${xeroContext.today}
-Responde basándote en estos datos. Si algo no está disponible, indícalo claramente.`;
-
+${JSON.stringify(ctx, null, 2)}
+Fecha hoy: ${ctx.today}. Si un dato no está disponible, dilo claramente.`;
       try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-6',
-            max_tokens: 1500,
-            system: systemPrompt,
-            messages: chatHistory
-          })
-        });
-        const data = await response.json();
+        const res = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1500, system:sys, messages: chatHistory }) });
+        const data = await res.json();
         const reply = data.content?.[0]?.text || 'No pude obtener una respuesta.';
-        chatHistory.push({ role: 'assistant', content: reply });
-        removeTyping();
-        addMessage('ai', reply);
-      } catch(e) {
-        removeTyping();
-        addMessage('ai', 'Error al conectar con el asistente. Por favor intenta de nuevo.');
-      }
-      document.getElementById('chat-send').disabled = false;
+        chatHistory.push({ role:'assistant', content: reply });
+        removeTyping(); addMessage('ai', reply);
+      } catch(e){ removeTyping(); addMessage('ai','Error al conectar con el asistente. Intenta de nuevo.'); }
+      document.getElementById('chat-send').disabled=false;
     }
 
     init();
