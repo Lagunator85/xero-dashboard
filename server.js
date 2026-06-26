@@ -88,7 +88,24 @@ app.get('/api/report/:reportName', async (req, res) => {
   }
 });
 
+// Proxy para Claude AI
+app.post('/api/chat', async (req, res) => {
+  try {
+    const response = await axios.post('https://api.anthropic.com/v1/messages', req.body, {
+      headers: {
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json'
+      }
+    });
+    res.json(response.data);
+  } catch(e) {
+    res.status(500).json({ error: e.response?.data || e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
 
 // Proxy para Claude AI
@@ -106,4 +123,5 @@ app.post('/api/chat', async (req, res) => {
     res.status(500).json({ error: e.response?.data || e.message });
   }
 });
+
 
