@@ -10,7 +10,7 @@ app.use(express.static('public'));
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
-const SCOPES = 'openid profile email accounting.reports.profitandloss.read accounting.reports.balancesheet.read accounting.reports.banksummary.read offline_access';
+const SCOPES = 'openid profile email accounting.reports.profitandloss.read accounting.reports.balancesheet.read accounting.reports.banksummary.read accounting.reports.aged.read accounting.contacts.read accounting.invoices.read offline_access';
 
 const tokenStore = {};
 
@@ -63,8 +63,9 @@ app.get('/api/tenants', async (req, res) => {
   }
 });
 
+// Reportes estándar
 app.get('/api/report/:reportName', async (req, res) => {
-  const { tenantId, fromDate, toDate, date } = req.query;
+  const { tenantId, fromDate, toDate, date, periods, timeframe } = req.query;
   const { reportName } = req.params;
   try {
     const url = `https://api.xero.com/api.xro/2.0/Reports/${reportName}`;
@@ -72,6 +73,8 @@ app.get('/api/report/:reportName', async (req, res) => {
     if (fromDate) params.fromDate = fromDate;
     if (toDate) params.toDate = toDate;
     if (date) params.date = date;
+    if (periods) params.periods = periods;
+    if (timeframe) params.timeframe = timeframe;
     const response = await axios.get(url, {
       params,
       headers: {
@@ -86,6 +89,50 @@ app.get('/api/report/:reportName', async (req, res) => {
   }
 });
 
+// Contactos (clientes y proveedores)
+app.get('/api/contacts', async (req, res) => {
+  const { tenantId, where } = req.query;
+  try {
+    const params = { summaryOnly: false };
+    if (where) params.where = where;
+    const response = await axios.get('https://api.xero.com/api.xro/2.0/Contacts', {
+      params,
+      headers: {
+        'Authorization': `Bearer ${tokenStore['access_token']}`,
+        'Xero-tenant-id': tenantId,
+        'Accept': 'application/json'
+      }
+    });
+    res.json(response.data);
+  } catch (e) {
+    res.status(500).json({ error: e.response?.data || e.message });
+  }
+});
+
+// Facturas
+app.get('/api/invoices', async (req, res) => {
+  const { tenantId, type, status, fromDate, toDate, page } = req.query;
+  try {
+    const params = { page: page || 1 };
+    if (type) params.Type = type;
+    if (status) params.Statuses = status;
+    if (fromDate) params.DateFrom = fromDate;
+    if (toDate) params.DateTo = toDate;
+    const response = await axios.get('https://api.xero.com/api.xro/2.0/Invoices', {
+      params,
+      headers: {
+        'Authorization': `Bearer ${tokenStore['access_token']}`,
+        'Xero-tenant-id': tenantId,
+        'Accept': 'application/json'
+      }
+    });
+    res.json(response.data);
+  } catch (e) {
+    res.status(500).json({ error: e.response?.data || e.message });
+  }
+});
+
+// Proxy para Claude AI
 app.post('/api/chat', async (req, res) => {
   try {
     const response = await axios.post('https://api.anthropic.com/v1/messages', req.body, {
