@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -456,7 +457,7 @@ Fecha de hoy: ${xeroContext.today}
 Responde basándote en estos datos reales. Si algo no está disponible en los datos, indícalo.`;
 
       try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
