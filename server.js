@@ -11,7 +11,6 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
 const SCOPES = 'openid profile email accounting.reports.profitandloss.read accounting.reports.balancesheet.read accounting.reports.banksummary.read offline_access';
-
 // Ruta de inicio - redirige a Xero
 app.get('/auth', (req, res) => {
   const state = Math.random().toString(36).substring(2);
