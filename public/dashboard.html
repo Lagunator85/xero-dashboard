@@ -237,6 +237,9 @@
     let allTenants = [];
     let consConfig = { companies: [], excludedAccounts: [], mappings: [] };
     let consReportType = 'ProfitAndLoss';
+    let consTracking = null; // { categoryName, optionName } o null = todos
+    let trackingByCompany = {}; // tenantId -> [{categoryName, categoryId, options:[{name,id}]}]
+    let consSelected = {}; // key -> true (cuentas marcadas para unificar/excluir)
 
     async function init() {
       try {
@@ -625,6 +628,44 @@
     function normName(n){ return (n||'').trim().toLowerCase(); }
     function mappedName(n){ const m = consConfig.mappings.find(x => normName(x.from) === normName(n)); return m ? m.to : (n||'').trim(); }
 
+    async function loadTrackingForCompanies() {
+      for (const tid of consConfig.companies) {
+        if (trackingByCompany[tid]) continue;
+        try {
+          const data = await (await fetch(`/api/tracking?tenantId=${tid}`)).json();
+          trackingByCompany[tid] = (data?.TrackingCategories || []).map(c => ({
+            categoryName: c.Name, categoryId: c.TrackingCategoryID,
+            options: (c.Options || []).map(o => ({ name: o.Name, id: o.TrackingOptionID }))
+          }));
+        } catch(e){ trackingByCompany[tid] = []; }
+      }
+    }
+
+    // Lista unificada de opciones de tracking por NOMBRE (funciona compartan o no categorías)
+    function buildTrackingOptionsList() {
+      const map = {}; // "Categoría › Opción" -> {categoryName, optionName}
+      consConfig.companies.forEach(tid => {
+        (trackingByCompany[tid] || []).forEach(cat => {
+          cat.options.forEach(opt => {
+            const label = `${cat.categoryName} › ${opt.name}`;
+            map[label] = { categoryName: cat.categoryName, optionName: opt.name };
+          });
+        });
+      });
+      return map;
+    }
+
+    // Para una empresa, resuelve los IDs de su propia categoría/opción por nombre
+    function resolveTracking(tid) {
+      if (!consTracking) return null;
+      const cats = trackingByCompany[tid] || [];
+      const cat = cats.find(c => normName(c.categoryName) === normName(consTracking.categoryName));
+      if (!cat) return { missing: true };
+      const opt = cat.options.find(o => normName(o.name) === normName(consTracking.optionName));
+      if (!opt) return { missing: true };
+      return { trackingCategoryID: cat.categoryId, trackingOptionID: opt.id };
+    }
+
     async function renderConsolidacion() {
       const rc = document.getElementById('report-content');
       rc.innerHTML = '<div class="loading">Cargando consolidación...</div>';
@@ -632,15 +673,32 @@
       if (!consConfig.companies.length && allTenants.length) {
         consConfig.companies = allTenants.slice(0, Math.min(2, allTenants.length)).map(t => t.tenantId);
       }
+      await loadTrackingForCompanies();
 
       const companyChips = allTenants.map(t => `
         <div class="cons-chip ${consConfig.companies.includes(t.tenantId)?'active':''}" onclick="toggleConsCompany('${t.tenantId}')">
           <span>${consConfig.companies.includes(t.tenantId)?'✓':'+'}</span> ${t.tenantName}
         </div>`).join('');
 
+      const trackOpts = buildTrackingOptionsList();
+      const trackLabels = Object.keys(trackOpts).sort();
+      const curTrackLabel = consTracking ? `${consTracking.categoryName} › ${consTracking.optionName}` : '';
+      const trackSelect = trackLabels.length ? `
+        <strong style="font-size:13px;">Centro de costo:</strong>
+        <select id="cons-track" onchange="onConsTracking()">
+          <option value="">Todos (sin filtro)</option>
+          ${trackLabels.map(l => `<option value="${l}" ${l===curTrackLabel?'selected':''}>${l}</option>`).join('')}
+        </select>` : `<span style="font-size:12px;color:#999;">Sin categorías de tracking (o falta reconectar para el permiso).</span>`;
+
+      const mapPanel = consConfig.mappings.length ? `
+        <div style="margin-top:10px;font-size:12px;">
+          <strong>Unificaciones activas:</strong>
+          ${consConfig.mappings.map((m,i)=>`<span style="display:inline-block;background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:3px 10px;margin:3px;">${m.from} → ${m.to} <span style="cursor:pointer;color:#dc2626;" onclick="undoMapping(${i})">✕</span></span>`).join('')}
+        </div>` : '';
+
       rc.innerHTML = `<div class="cons-wrap">
         <div class="cons-banner">
-          <strong>Importante:</strong> esta consolidación suma las columnas de las empresas que elijas. NO elimina automáticamente operaciones entre empresas (ej. si una le factura a la otra). Para un consolidado contable válido, excluye o ajusta esas cuentas y valida el resultado con tu contador.
+          <strong>Importante:</strong> esta consolidación suma las columnas de las empresas que elijas. NO elimina automáticamente operaciones entre empresas. Para un consolidado contable válido, excluye o ajusta esas cuentas y valida con tu contador.
         </div>
         <div class="cons-controls">
           <strong style="font-size:13px;">Empresas:</strong>
@@ -652,9 +710,15 @@
             <option value="ProfitAndLoss" ${consReportType==='ProfitAndLoss'?'selected':''}>Estado de resultados (P&L)</option>
             <option value="BalanceSheet" ${consReportType==='BalanceSheet'?'selected':''}>Balance General</option>
           </select>
+          ${trackSelect}
+        </div>
+        <div class="cons-controls">
           <button class="btn-cons" onclick="buildConsolidacion()">Consolidar</button>
+          <button class="btn-cons-sec" onclick="unifySelected()">Unificar seleccionadas</button>
+          <button class="btn-cons-sec" onclick="excludeSelected()">Excluir seleccionadas</button>
           <button class="btn-cons-sec" id="cons-save" onclick="saveConsConfig()">Guardar configuración</button>
         </div>
+        ${mapPanel}
         <div id="cons-result"><div class="empty">Selecciona empresas y haz clic en "Consolidar".</div></div>
       </div>`;
 
@@ -666,14 +730,15 @@
       if (i >= 0) consConfig.companies.splice(i, 1); else consConfig.companies.push(id);
       renderConsolidacion();
     }
-
-    function onConsType() {
-      consReportType = document.getElementById('cons-type').value;
+    function onConsType() { consReportType = document.getElementById('cons-type').value; consSelected = {}; buildConsolidacion(); }
+    function onConsTracking() {
+      const v = document.getElementById('cons-track').value;
+      consTracking = v ? buildTrackingOptionsList()[v] : null;
       buildConsolidacion();
     }
+    function undoMapping(i) { consConfig.mappings.splice(i, 1); renderConsolidacion(); }
 
     function flattenForCons(data) {
-      // Devuelve [{ section, name, value }]
       const out = [];
       data?.Reports?.[0]?.Rows?.forEach(s => {
         if (s.RowType === 'Section') {
@@ -698,18 +763,20 @@
       result.innerHTML = '<div class="loading">Consultando empresas...</div>';
 
       const { fromDate, toDate } = getDateRange();
-      const params = consReportType === 'ProfitAndLoss' ? { fromDate, toDate } : { date: toDate };
+      const baseParams = consReportType === 'ProfitAndLoss' ? { fromDate, toDate } : { date: toDate };
 
-      // Una sola llamada por empresa (con caché del servidor)
-      const datasets = {};
+      const datasets = {}; const missingTrack = [];
       for (const tid of companies) {
+        const tr = resolveTracking(tid);
+        if (tr && tr.missing) { datasets[tid] = null; missingTrack.push(tid); continue; }
+        const params = { ...baseParams };
+        if (tr) { params.trackingCategoryID = tr.trackingCategoryID; params.trackingOptionID = tr.trackingOptionID; }
         const q = new URLSearchParams({ tenantId: tid, ...params });
         try { datasets[tid] = await (await fetch(`/api/report/${consReportType}?${q}`)).json(); }
         catch(e){ datasets[tid] = null; }
       }
 
-      // Construir grupos por nombre unificado, conservando sección
-      const groups = {}; // key -> { label, section, perCompany: {tid: val} }
+      const groups = {};
       companies.forEach(tid => {
         flattenForCons(datasets[tid]).forEach(item => {
           const label = mappedName(item.name);
@@ -719,45 +786,71 @@
         });
       });
 
-      // Agrupar por sección
       const bySection = {};
-      Object.entries(groups).forEach(([key, g]) => {
-        (bySection[g.section] = bySection[g.section] || []).push({ key, ...g });
-      });
+      Object.entries(groups).forEach(([key, g]) => { (bySection[g.section] = bySection[g.section] || []).push({ key, ...g }); });
 
       const tenantName = tid => (allTenants.find(t => t.tenantId === tid)?.tenantName) || 'Empresa';
-      let html = `<table class="cons-table"><thead><tr><th>Cuenta</th>${companies.map(t=>`<th class="amount">${tenantName(t)}</th>`).join('')}<th class="amount">Consolidado</th><th></th></tr></thead><tbody>`;
+      let html = '';
+      if (missingTrack.length) html += `<div style="font-size:12px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-bottom:10px;">Nota: ${missingTrack.map(tenantName).join(', ')} no tiene ese centro de costo; no aporta a esta vista filtrada.</div>`;
 
-      const grandTotals = {}; companies.forEach(t=>grandTotals[t]=0); let grandCons = 0;
+      html += `<table class="cons-table"><thead><tr><th style="width:28px;"></th><th>Cuenta</th>${companies.map(t=>`<th class="amount">${tenantName(t)}</th>`).join('')}<th class="amount">Consolidado</th><th></th></tr></thead><tbody>`;
+
+      const grand = {}; companies.forEach(t=>grand[t]=0); let grandCons = 0;
 
       Object.entries(bySection).forEach(([section, rows]) => {
-        html += `<tr class="cons-sec"><td colspan="${companies.length+2}">${section}</td></tr>`;
-        const secTotals = {}; companies.forEach(t=>secTotals[t]=0); let secCons = 0;
+        html += `<tr class="cons-sec"><td colspan="${companies.length+3}">${section}</td></tr>`;
+        const secT = {}; companies.forEach(t=>secT[t]=0); let secCons = 0;
         rows.forEach(g => {
           const excluded = consConfig.excludedAccounts.includes(g.key);
           let consVal = 0;
           const cells = companies.map(t => { const v = g.perCompany[t]||0; if(!excluded) consVal += v; return `<td class="amount">${v?fmt(v):''}</td>`; }).join('');
-          if (!excluded) { companies.forEach(t=>{ secTotals[t]+=(g.perCompany[t]||0); }); secCons += consVal; }
+          if (!excluded) { companies.forEach(t=>{ secT[t]+=(g.perCompany[t]||0); }); secCons += consVal; }
           html += `<tr class="${excluded?'cons-excluded':''}">
+            <td><input type="checkbox" ${consSelected[g.key]?'checked':''} onchange="toggleSelect('${g.key}')"></td>
             <td>${g.label}</td>${cells}
             <td class="amount cons-consolidated">${consVal?fmt(consVal):''}</td>
             <td><span class="cons-x" onclick="toggleExclude('${g.key}')" title="${excluded?'Incluir':'Excluir'}">${excluded?'+':'✕'}</span></td>
           </tr>`;
         });
-        html += `<tr class="cons-total"><td>Total ${section}</td>${companies.map(t=>`<td class="amount">${fmt(secTotals[t])}</td>`).join('')}<td class="amount">${fmt(secCons)}</td><td></td></tr>`;
-        companies.forEach(t=>grandTotals[t]+=secTotals[t]); grandCons += secCons;
+        html += `<tr class="cons-total"><td></td><td>Total ${section}</td>${companies.map(t=>`<td class="amount">${fmt(secT[t])}</td>`).join('')}<td class="amount">${fmt(secCons)}</td><td></td></tr>`;
+        companies.forEach(t=>grand[t]+=secT[t]); grandCons += secCons;
       });
 
-      html += `<tr class="cons-grand"><td>TOTAL CONSOLIDADO</td>${companies.map(t=>`<td class="amount">${fmt(grandTotals[t])}</td>`).join('')}<td class="amount">${fmt(grandCons)}</td><td></td></tr>`;
+      html += `<tr class="cons-grand"><td></td><td>TOTAL CONSOLIDADO</td>${companies.map(t=>`<td class="amount">${fmt(grand[t])}</td>`).join('')}<td class="amount">${fmt(grandCons)}</td><td></td></tr>`;
       html += `</tbody></table>
-        <p style="font-size:11px;color:#999;margin-top:10px;">Haz clic en ✕ para excluir una cuenta del consolidado. Los cambios se mantienen al guardar. La suma de secciones es referencial según la estructura de cada empresa.</p>`;
+        <p style="font-size:11px;color:#999;margin-top:10px;">Marca las casillas y usa "Unificar seleccionadas" para juntar cuentas con nombres distintos, o "Excluir seleccionadas". La ✕ excluye una sola cuenta. Guarda para conservar los cambios.</p>`;
       result.innerHTML = html;
     }
 
+    function toggleSelect(key) { if (consSelected[key]) delete consSelected[key]; else consSelected[key] = true; }
     function toggleExclude(key) {
       const i = consConfig.excludedAccounts.indexOf(key);
       if (i >= 0) consConfig.excludedAccounts.splice(i, 1); else consConfig.excludedAccounts.push(key);
       buildConsolidacion();
+    }
+    function excludeSelected() {
+      const keys = Object.keys(consSelected);
+      if (!keys.length) { alert('Marca al menos una cuenta con la casilla.'); return; }
+      keys.forEach(k => { if (!consConfig.excludedAccounts.includes(k)) consConfig.excludedAccounts.push(k); });
+      consSelected = {}; buildConsolidacion();
+    }
+    function unifySelected() {
+      const keys = Object.keys(consSelected);
+      if (keys.length < 2) { alert('Marca dos o más cuentas para unificarlas.'); return; }
+      const nombre = prompt('Nombre unificado para estas cuentas:');
+      if (!nombre) return;
+      // Recuperar las etiquetas actuales de las cuentas seleccionadas desde la tabla
+      const labels = [];
+      document.querySelectorAll('#cons-result tbody tr').forEach(tr => {
+        const cb = tr.querySelector('input[type=checkbox]');
+        if (cb && cb.checked) { const lblCell = tr.children[1]; if (lblCell) labels.push(lblCell.textContent.trim()); }
+      });
+      labels.forEach(lbl => {
+        consConfig.mappings = consConfig.mappings.filter(m => normName(m.from) !== normName(lbl));
+        consConfig.mappings.push({ from: lbl, to: nombre });
+      });
+      consSelected = {};
+      renderConsolidacion();
     }
 
     // ── CHAT ──────────────────────────────────────────────────
