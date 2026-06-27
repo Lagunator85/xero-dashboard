@@ -240,6 +240,8 @@
     let consTracking = null; // { categoryName, optionName } o null = todos
     let trackingByCompany = {}; // tenantId -> [{categoryName, categoryId, options:[{name,id}]}]
     let consSelected = {}; // key -> true (cuentas marcadas para unificar/excluir)
+    let consUndoStack = []; // historial para deshacer
+    let consRangeSel = 'thisyear';
 
     async function init() {
       try {
@@ -666,6 +668,52 @@
       return { trackingCategoryID: cat.categoryId, trackingOptionID: opt.id };
     }
 
+    // Rango de fechas propio de la consolidación
+    function getConsDateRange() {
+      const sel = consRangeSel;
+      const now = new Date();
+      const y = now.getFullYear(), mo = now.getMonth();
+      const iso = d => d.toISOString().split('T')[0];
+      const fom = (yy, mm) => new Date(yy, mm, 1);
+      const lom = (yy, mm) => new Date(yy, mm + 1, 0);
+      const q = Math.floor(mo / 3);
+      switch(sel) {
+        case 'thismonth': return { fromDate: iso(fom(y, mo)), toDate: iso(lom(y, mo)) };
+        case 'thisquarter': return { fromDate: iso(fom(y, q*3)), toDate: iso(lom(y, q*3+2)) };
+        case 'thisyear': return { fromDate: `${y}-01-01`, toDate: `${y}-12-31` };
+        case 'lastmonth': { const d = fom(y, mo-1); return { fromDate: iso(d), toDate: iso(lom(d.getFullYear(), d.getMonth())) }; }
+        case 'lastquarter': { const lq = q-1; const yy = lq<0?y-1:y; const qq=(lq+4)%4; return { fromDate: iso(fom(yy, qq*3)), toDate: iso(lom(yy, qq*3+2)) }; }
+        case 'lastyear': return { fromDate: `${y-1}-01-01`, toDate: `${y-1}-12-31` };
+        case 'ytd': return { fromDate: `${y}-01-01`, toDate: iso(now) };
+        case 'custom': {
+          const f = document.getElementById('cons-from')?.value || `${y}-01-01`;
+          const t = document.getElementById('cons-to')?.value || iso(now);
+          return { fromDate: f, toDate: t };
+        }
+        default: return { fromDate: `${y}-01-01`, toDate: `${y}-12-31` };
+      }
+    }
+    function onConsRange() {
+      consRangeSel = document.getElementById('cons-range').value;
+      document.getElementById('cons-custom').classList.toggle('show', consRangeSel === 'custom');
+      if (consRangeSel !== 'custom') buildConsolidacion();
+    }
+
+    // Deshacer: guarda una copia de la configuración antes de cada cambio
+    function pushUndo() {
+      consUndoStack.push(JSON.stringify({ excludedAccounts: consConfig.excludedAccounts, mappings: consConfig.mappings }));
+      if (consUndoStack.length > 30) consUndoStack.shift();
+    }
+    function consUndo() {
+      if (!consUndoStack.length) { alert('No hay nada que deshacer.'); return; }
+      const prev = JSON.parse(consUndoStack.pop());
+      consConfig.excludedAccounts = prev.excludedAccounts || [];
+      consConfig.mappings = prev.mappings || [];
+      renderConsolidacion();
+    }
+
+    function consVolver() { const tab = document.querySelector('.tab'); document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active')); if(tab)tab.classList.add('active'); showTabContent('pl'); }
+
     async function renderConsolidacion() {
       const rc = document.getElementById('report-content');
       rc.innerHTML = '<div class="loading">Cargando consolidación...</div>';
@@ -697,6 +745,11 @@
         </div>` : '';
 
       rc.innerHTML = `<div class="cons-wrap">
+        <div class="cons-controls" style="border-bottom:1px solid #f0f0f0;padding-bottom:12px;">
+          <button class="btn-cons-sec" onclick="consVolver()">← Volver</button>
+          <a class="btn-cons-sec" href="/" style="text-decoration:none;">+ Conectar otra empresa</a>
+          <button class="btn-cons-sec" onclick="consUndo()">↶ Deshacer</button>
+        </div>
         <div class="cons-banner">
           <strong>Importante:</strong> esta consolidación suma las columnas de las empresas que elijas. NO elimina automáticamente operaciones entre empresas. Para un consolidado contable válido, excluye o ajusta esas cuentas y valida con tu contador.
         </div>
@@ -713,6 +766,20 @@
           ${trackSelect}
         </div>
         <div class="cons-controls">
+          <strong style="font-size:13px;">Período:</strong>
+          <select id="cons-range" onchange="onConsRange()">
+            <option value="thismonth" ${consRangeSel==='thismonth'?'selected':''}>Este mes</option>
+            <option value="thisquarter" ${consRangeSel==='thisquarter'?'selected':''}>Este trimestre</option>
+            <option value="thisyear" ${consRangeSel==='thisyear'?'selected':''}>Este año</option>
+            <option value="lastmonth" ${consRangeSel==='lastmonth'?'selected':''}>Mes anterior</option>
+            <option value="lastquarter" ${consRangeSel==='lastquarter'?'selected':''}>Trimestre anterior</option>
+            <option value="lastyear" ${consRangeSel==='lastyear'?'selected':''}>Año anterior</option>
+            <option value="ytd" ${consRangeSel==='ytd'?'selected':''}>Año a la fecha</option>
+            <option value="custom" ${consRangeSel==='custom'?'selected':''}>Rango personalizado…</option>
+          </select>
+          <span class="custom-dates ${consRangeSel==='custom'?'show':''}" id="cons-custom">
+            <input type="date" id="cons-from" /><span style="color:#888;font-size:12px;">a</span><input type="date" id="cons-to" />
+          </span>
           <button class="btn-cons" onclick="buildConsolidacion()">Consolidar</button>
           <button class="btn-cons-sec" onclick="unifySelected()">Unificar seleccionadas</button>
           <button class="btn-cons-sec" onclick="excludeSelected()">Excluir seleccionadas</button>
@@ -762,18 +829,27 @@
       if (!companies.length) { result.innerHTML = '<div class="empty">Selecciona al menos una empresa.</div>'; return; }
       result.innerHTML = '<div class="loading">Consultando empresas...</div>';
 
-      const { fromDate, toDate } = getDateRange();
+      const { fromDate, toDate } = getConsDateRange();
       const baseParams = consReportType === 'ProfitAndLoss' ? { fromDate, toDate } : { date: toDate };
 
-      const datasets = {}; const missingTrack = [];
+      const datasets = {}; const missingTrack = []; let authError = false;
       for (const tid of companies) {
         const tr = resolveTracking(tid);
         if (tr && tr.missing) { datasets[tid] = null; missingTrack.push(tid); continue; }
         const params = { ...baseParams };
         if (tr) { params.trackingCategoryID = tr.trackingCategoryID; params.trackingOptionID = tr.trackingOptionID; }
         const q = new URLSearchParams({ tenantId: tid, ...params });
-        try { datasets[tid] = await (await fetch(`/api/report/${consReportType}?${q}`)).json(); }
+        try {
+          const r = await (await fetch(`/api/report/${consReportType}?${q}`)).json();
+          if (r && r.error) { authError = true; datasets[tid] = null; }
+          else datasets[tid] = r;
+        }
         catch(e){ datasets[tid] = null; }
+      }
+
+      if (authError) {
+        result.innerHTML = `<div class="empty">No se pudieron leer los datos de Xero. Es posible que la sesión haya expirado tras un reinicio del servidor.<br><br><a href="/" class="btn-cons" style="text-decoration:none;padding:8px 16px;">Reconectar con Xero</a></div>`;
+        return;
       }
 
       const groups = {};
@@ -824,6 +900,7 @@
 
     function toggleSelect(key) { if (consSelected[key]) delete consSelected[key]; else consSelected[key] = true; }
     function toggleExclude(key) {
+      pushUndo();
       const i = consConfig.excludedAccounts.indexOf(key);
       if (i >= 0) consConfig.excludedAccounts.splice(i, 1); else consConfig.excludedAccounts.push(key);
       buildConsolidacion();
@@ -831,6 +908,7 @@
     function excludeSelected() {
       const keys = Object.keys(consSelected);
       if (!keys.length) { alert('Marca al menos una cuenta con la casilla.'); return; }
+      pushUndo();
       keys.forEach(k => { if (!consConfig.excludedAccounts.includes(k)) consConfig.excludedAccounts.push(k); });
       consSelected = {}; buildConsolidacion();
     }
@@ -839,7 +917,7 @@
       if (keys.length < 2) { alert('Marca dos o más cuentas para unificarlas.'); return; }
       const nombre = prompt('Nombre unificado para estas cuentas:');
       if (!nombre) return;
-      // Recuperar las etiquetas actuales de las cuentas seleccionadas desde la tabla
+      pushUndo();
       const labels = [];
       document.querySelectorAll('#cons-result tbody tr').forEach(tr => {
         const cb = tr.querySelector('input[type=checkbox]');
