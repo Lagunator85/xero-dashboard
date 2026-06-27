@@ -12,7 +12,7 @@ app.use(express.static('public'));
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
-const SCOPES = 'openid profile email accounting.reports.profitandloss.read accounting.reports.balancesheet.read accounting.reports.banksummary.read accounting.reports.aged.read accounting.contacts.read accounting.invoices.read offline_access';
+const SCOPES = 'openid profile email accounting.reports.profitandloss.read accounting.reports.balancesheet.read accounting.reports.banksummary.read accounting.reports.aged.read accounting.contacts.read accounting.invoices.read accounting.settings.read offline_access';
 
 // PUNTO DE MIGRACIÓN #2: el token vive en memoria; si el server reinicia hay que
 // reconectar. En producción: guardar tokens cifrados en BD + refresh automático.
@@ -113,7 +113,7 @@ app.get('/api/tenants', async (req, res) => {
 });
 
 app.get('/api/report/:reportName', async (req, res) => {
-  const { tenantId, fromDate, toDate, date, periods, timeframe } = req.query;
+  const { tenantId, fromDate, toDate, date, periods, timeframe, trackingCategoryID, trackingOptionID } = req.query;
   const { reportName } = req.params;
   try {
     const params = {};
@@ -122,8 +122,19 @@ app.get('/api/report/:reportName', async (req, res) => {
     if (date) params.date = date;
     if (periods) params.periods = periods;
     if (timeframe) params.timeframe = timeframe;
+    if (trackingCategoryID) params.trackingCategoryID = trackingCategoryID;
+    if (trackingOptionID) params.trackingOptionID = trackingOptionID;
     const { data, fromCache } = await xeroGet(`https://api.xero.com/api.xro/2.0/Reports/${reportName}`, tenantId, params);
     res.set('X-From-Cache', fromCache ? 'true' : 'false');
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.response?.data || e.message }); }
+});
+
+// Categorías de tracking (centros de costo)
+app.get('/api/tracking', async (req, res) => {
+  const { tenantId } = req.query;
+  try {
+    const { data } = await xeroGet('https://api.xero.com/api.xro/2.0/TrackingCategories', tenantId, {});
     res.json(data);
   } catch (e) { res.status(500).json({ error: e.response?.data || e.message }); }
 });
